@@ -12,6 +12,7 @@ import { AlertCircle, Upload, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { motion, AnimatePresence } from "framer-motion"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 type UserData = {
   isEncrypting: boolean
@@ -30,6 +31,7 @@ export default function App() {
   })
   const [error, setError] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const { toast } = useToast()
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -56,10 +58,18 @@ export default function App() {
         [user]: { ...prev[user], input: e.target?.result as string }
       }))
       reader.readAsText(droppedFile)
+      toast({
+        title: "File uploaded successfully",
+        description: `${droppedFile.name} has been loaded.`,
+      })
     } else {
-      setError('Only .txt files can be uploaded!')
+      toast({
+        variant: "destructive",
+        title: "Invalid file type",
+        description: "Only .txt files can be uploaded!",
+      })
     }
-  }, [])
+  }, [toast])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, user: string) => {
     const selectedFile = e.target.files?.[0]
@@ -74,16 +84,36 @@ export default function App() {
         [user]: { ...prev[user], input: e.target?.result as string }
       }))
       reader.readAsText(selectedFile)
+      toast({
+        title: "File uploaded successfully",
+        description: `${selectedFile.name} has been loaded.`,
+      })
     } else {
-      setError('Only .txt files can be uploaded!')
+      toast({
+        variant: "destructive",
+        title: "Invalid file type",
+        description: "Only .txt files can be uploaded!",
+      })
     }
   }
 
   const handleConvert = (user: string) => {
     setError('')
     const { input, mergedKey, isEncrypting } = userData[user]
+    if (!input) {
+      toast({
+        variant: "destructive",
+        title: "Input is empty",
+        description: "Please enter some text or upload a file to process.",
+      })
+      return
+    }
     if (!mergedKey || mergedKey.length > 32) {
-      setError('The key cannot be empty and cannot be longer than 32.')
+      toast({
+        variant: "destructive",
+        title: "Invalid key",
+        description: "The key cannot be empty and cannot be longer than 32 characters.",
+      })
       return
     }
 
@@ -93,8 +123,16 @@ export default function App() {
         ...prev,
         [user]: { ...prev[user], result }
       }))
+      toast({
+        title: isEncrypting ? "Encryption successful" : "Decryption successful",
+        description: "The operation has been completed successfully.",
+      })
     } catch (err) {
-      setError('An error occurred during processing. Please check your input')
+      toast({
+        variant: "destructive",
+        title: "Processing error",
+        description: "An error occurred during processing. Please check your input and key.",
+      })
     }
   }
 
@@ -107,9 +145,12 @@ export default function App() {
   }
 
   const handleMergeKeys = (userA: string, userB: string) => {
-    // 检查a和b的key是否为空
     if (!userData[userA].key || !userData[userB].key) {
-      setError('Both users must enter a key to merge.')
+      toast({
+        variant: "destructive",
+        title: "Missing keys",
+        description: "Both users must enter a key to merge.",
+      })
       return
     }
 
@@ -121,11 +162,11 @@ export default function App() {
       [userB]: { ...prev[userB], mergedKey }
     }));
 
-    console.log(`Merged Key for User ${userA.toUpperCase()}: ${mergedKey}`);
-    console.log(`Merged Key for User ${userB.toUpperCase()}: ${mergedKey}`);
+    toast({
+      title: "Keys merged successfully",
+      description: "The merged key has been generated and applied to both users.",
+    })
   }
-
-
 
   const renderUserInterface = (user: string) => (
     <Card className="w-full max-w-xl">
@@ -167,7 +208,6 @@ export default function App() {
               onChange={(e) => handleKeyChange(e, user)}
               placeholder="Key (no more than 32 bits)"
             />
-            {/* 在 'a' 界面调用 'handleMergeKeys' 并指定 'a' 和 'b' */}
             <Button onClick={() => handleMergeKeys('a', 'b')}>Merge Keys</Button>
           </div>
         </motion.div>
